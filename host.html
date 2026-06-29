@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiki or Whack? — Host</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:#0d1b2a;color:#f0ede4;min-height:100vh;overflow:hidden}
+
+/* LAYOUT */
+.host-layout{display:grid;grid-template-columns:1fr 340px;height:100vh;gap:0}
+.main-panel{padding:32px;display:flex;flex-direction:column;gap:20px;overflow:hidden;border-right:1px solid #1e3048}
+.side-panel{padding:24px;display:flex;flex-direction:column;gap:16px;background:#0a1520;overflow-y:auto}
+
+/* SCREENS */
+.screen{display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center}
+.screen.active{display:flex}
+.main-panel .screen{height:auto;flex:1}
+
+/* LOBBY SCREEN */
+.w-big{font-family:'Playfair Display',serif;font-size:100px;font-weight:900;color:#f5c842;line-height:1;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.8}}
+.game-title{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;margin:8px 0 4px}
+.game-sub{color:#64748b;font-size:16px;letter-spacing:3px;text-transform:uppercase;margin-bottom:32px}
+.qr-box{background:#162032;border:1px solid #1e3048;border-radius:20px;padding:28px 40px;text-align:center}
+.url-display{font-size:22px;font-weight:600;color:#f5c842;margin-bottom:8px;word-break:break-all}
+.url-sub{color:#4a5568;font-size:14px}
+.player-count{font-family:'Playfair Display',serif;font-size:80px;font-weight:900;color:#f5c842;text-align:center;line-height:1}
+.player-count-label{color:#64748b;font-size:14px;text-transform:uppercase;letter-spacing:2px;text-align:center;margin-top:4px}
+
+/* CONTROLS */
+.btn-host{background:#f5c842;color:#0d1b2a;border:none;border-radius:12px;padding:16px 32px;font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:600;cursor:pointer;transition:all 0.2s;width:100%}
+.btn-host:hover{background:#ffd95a;transform:translateY(-1px)}
+.btn-host:disabled{opacity:0.4;cursor:default;transform:none}
+.btn-danger{background:transparent;color:#e74c3c;border:1.5px solid #e74c3c;border-radius:12px;padding:12px 24px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;width:100%;margin-top:8px}
+.btn-danger:hover{background:rgba(231,76,60,0.1)}
+.setup-row{display:flex;flex-direction:column;gap:8px}
+.setup-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px}
+select{background:#162032;border:1px solid #1e3048;border-radius:8px;padding:10px 12px;color:#f0ede4;font-family:'IBM Plex Sans',sans-serif;font-size:15px;width:100%}
+
+/* QUESTION SCREEN */
+.q-meta{display:flex;justify-content:space-between;align-items:center;width:100%}
+.q-badge{background:#1e3048;border-radius:20px;padding:8px 20px;font-size:14px;color:#94a3b8}
+.q-badge span{color:#f5c842;font-weight:600;font-size:16px}
+.timer-wrap{width:100%;background:#1e3048;border-radius:6px;height:10px;overflow:hidden}
+.timer-bar{height:100%;border-radius:6px;background:#f5c842;transition:width 0.1s linear,background 0.5s}
+.q-tag{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#f5c842;margin-bottom:12px}
+.q-statement{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;line-height:1.4;color:#f0ede4;text-align:center;max-width:700px}
+.choices-display{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:700px}
+.choice-box{background:#162032;border:2px solid #1e3048;border-radius:16px;padding:24px;text-align:center;font-size:20px;font-weight:600}
+.choice-box.reveal-correct{border-color:#27ae60;background:rgba(39,174,96,0.15);color:#2ecc71}
+.choice-box.reveal-wrong{border-color:#374151;background:rgba(30,48,72,0.5);color:#4a5568}
+.answer-count{font-size:13px;color:#64748b;margin-top:8px}
+
+/* REVEAL SCREEN */
+.reveal-verdict{font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.reveal-verdict.correct{color:#27ae60}
+.reveal-verdict.wrong{color:#e74c3c}
+.reveal-q{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;line-height:1.4;max-width:680px;text-align:center;margin-bottom:16px}
+.reveal-summary{color:#94a3b8;font-size:16px;line-height:1.7;max-width:600px;text-align:center;margin-bottom:16px}
+.wiki-link{color:#f5c842;text-decoration:none;font-size:14px;border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:8px 16px}
+.wiki-link:hover{background:rgba(245,200,66,0.1)}
+
+/* LEADERBOARD SIDEBAR */
+.lb-title{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.lb-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #0d1b2a}
+.lb-rank{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;width:32px;text-align:center}
+.lb-rank.r1{color:#f5c842}
+.lb-rank.r2{color:#94a3b8}
+.lb-rank.r3{color:#cd7f32}
+.lb-rank.rx{color:#1e3048}
+.lb-name{flex:1;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-pts{font-size:15px;font-weight:600;color:#f5c842;white-space:nowrap}
+.lb-new{font-size:11px;color:#27ae60;margin-left:4px}
+.answer-stats{display:flex;gap:12px;margin-top:4px}
+.stat-box{background:#162032;border-radius:10px;padding:12px 16px;flex:1;text-align:center}
+.stat-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:700}
+.stat-label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+/* FINAL */
+.final-lb-row{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #1e3048}
+.final-rank-big{font-family:'Playfair Display',serif;font-size:36px;font-weight:900;width:48px;text-align:center}
+
+/* LOADING */
+.loading-dots span{animation:blink 1.2s infinite;display:inline-block}
+.loading-dots span:nth-child(2){animation-delay:0.2s}
+.loading-dots span:nth-child(3){animation-delay:0.4s}
+@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
+
+/* CONFETTI */
+.confetti-wrap{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
+</style>
+</head>
+<body>
+
+<div class="host-layout">
+  <!-- MAIN PANEL -->
+  <div class="main-panel">
+
+    <!-- LOBBY -->
+    <div class="screen active" id="ms-lobby">
+      <div class="w-big">W</div>
+      <div class="game-title">Wiki or Whack?</div>
+      <div class="game-sub">Wikipedia's 25th Anniversary</div>
+      <div class="qr-box">
+        <div class="url-display" id="player-url">Loading URL...</div>
+        <div class="url-sub">Players open this on their phones</div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="player-count" id="lobby-count">0</div>
+        <div class="player-count-label">players joined</div>
+      </div>
+    </div>
+
+    <!-- LOADING Q -->
+    <div class="screen" id="ms-loading">
+      <div style="color:#64748b;font-size:18px" class="loading-dots">
+        Fetching question<span>.</span><span>.</span><span>.</span>
+      </div>
+    </div>
+
+    <!-- QUESTION -->
+    <div class="screen" id="ms-question" style="gap:20px">
+      <div class="q-meta">
+        <div class="q-badge">Q <span id="h-q-num">1</span> / <span id="h-q-total">10</span></div>
+        <div class="q-badge">⏱ <span id="h-timer">15</span>s</div>
+        <div class="q-badge" id="h-answered-badge">0 answered</div>
+      </div>
+      <div class="timer-wrap"><div class="timer-bar" id="h-timer-bar" style="width:100%"></div></div>
+      <div class="q-tag" id="h-q-tag">📖 Fact or Fake?</div>
+      <div class="q-statement" id="h-q-text">Loading...</div>
+      <div class="choices-display">
+        <div class="choice-box" id="h-btn-fact">✅ That's a FACT</div>
+        <div class="choice-box" id="h-btn-whack">❌ Total WHACK</div>
+      </div>
+      <div class="answer-stats">
+        <div class="stat-box"><div class="stat-num" id="stat-fact">0</div><div class="stat-label">Said Fact</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-whack">0</div><div class="stat-label">Said Whack</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-pending">0</div><div class="stat-label">Pending</div></div>
+      </div>
+    </div>
+
+    <!-- REVEAL -->
+    <div class="screen" id="ms-reveal" style="gap:12px">
+      <div class="reveal-verdict" id="h-rv-verdict">FACT</div>
+      <div class="reveal-q" id="h-rv-statement"></div>
+      <div class="reveal-summary" id="h-rv-summary"></div>
+      <a class="wiki-link" id="h-rv-link" href="#" target="_blank">📖 Read on Wikipedia</a>
+    </div>
+
+    <!-- FINAL -->
+    <div class="screen" id="ms-final" style="gap:0;align-items:stretch;overflow-y:auto">
+      <div style="text-align:center;padding:24px 0 16px">
+        <div style="font-size:48px">🏆</div>
+        <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:700">Final Leaderboard</div>
+        <div style="color:#64748b;font-size:14px;margin-top:4px" id="final-sub">Game complete!</div>
+      </div>
+      <div id="final-list" style="flex:1;overflow-y:auto;padding:0 24px"></div>
+    </div>
+
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel">
+    <div class="lb-title">Leaderboard</div>
+    <div id="lb-list"></div>
+
+    <div style="border-top:1px solid #1e3048;padding-top:16px;margin-top:8px;display:flex;flex-direction:column;gap:10px" id="controls-panel">
+      <div class="setup-row" id="setup-section">
+        <div class="setup-label">Questions</div>
+        <select id="h-q-count">
+          <option value="10">10 questions</option>
+          <option value="15">15 questions</option>
+          <option value="20">20 questions</option>
+        </select>
+        <div class="setup-label" style="margin-top:8px">Time per question</div>
+        <select id="h-time-limit">
+          <option value="15">15 seconds</option>
+          <option value="20">20 seconds</option>
+          <option value="30">30 seconds</option>
+        </select>
+      </div>
+      <button class="btn-host" id="start-btn" onclick="startGame()">Start Game</button>
+      <button class="btn-host" id="next-btn" onclick="nextQuestion()" style="display:none">Next Question →</button>
+      <button class="btn-danger" id="reset-btn" onclick="resetGame()" style="display:none">Reset Game</button>
+    </div>
+  </div>
+</div>
+
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCTv3Z2wribcOM8a2A6U4O2HKDoDfrIXNk",
+  authDomain: "wiki-or-whack.firebaseapp.com",
+  databaseURL: "https://wiki-or-whack-default-rtdb.firebaseio.com",
+  projectId: "wiki-or-whack",
+  storageBucket: "wiki-or-whack.firebasestorage.app",
+  messagingSenderId: "990567923630",
+  appId: "1:990567923630:web:193c7f969fe858fe16d23f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let currentQIndex = -1;
+let totalQ = 10;
+let timeLimit = 15;
+let timerInterval = null;
+let timeLeft = 15;
+let playerCount = 0;
+let questions = [];
+let currentState = 'lobby';
+let answersListener = null;
+
+const WIKI_TOPICS = [
+  "Platypus","Honey badger","Octopus","Pistol shrimp","Mantis shrimp","Tardigrade","Electric eel",
+  "Horseshoe crab","Glass frog","Axolotl","Blue-ringed octopus","Bombardier beetle","Lyrebird",
+  "Mimic octopus","Narwhal","Aye-aye","Dung beetle","Archerfish","Blobfish","Hairy frogfish",
+  "Leafy seadragon","Star-nosed mole","Turritopsis dohrnii","Coelacanth","Hagfish","Immortal jellyfish",
+  "Peacock mantis shrimp","Mimic octopus","Velvet worm","Tongue-eating louse"
+];
+
+// Set player URL
+const base = location.href.replace('host.html','index.html');
+document.getElementById('player-url').textContent = base;
+
+// Listen to players
+onValue(ref(db, 'game/players'), snap => {
+  const players = snap.val() || {};
+  const list = Object.values(players).sort((a,b) => b.score - a.score);
+  playerCount = list.length;
+  document.getElementById('lobby-count').textContent = playerCount;
+  renderLeaderboard(list);
+});
+
+function renderLeaderboard(list) {
+  const ranks = ['r1','r2','r3'];
+  document.getElementById('lb-list').innerHTML = list.slice(0,15).map((p,i) =>
+    `<div class="lb-row">
+      <div class="lb-rank ${ranks[i]||'rx'}">${i+1}</div>
+      <div class="lb-name">${p.name}</div>
+      <div class="lb-pts">${p.score||0}</div>
+    </div>`
+  ).join('');
+}
+
+function showMain(id) {
+  document.querySelectorAll('.main-panel .screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.startGame = async function() {
+  totalQ = parseInt(document.getElementById('h-q-count').value);
+  timeLimit = parseInt(document.getElementById('h-time-limit').value);
+  currentQIndex = -1;
+  questions = [];
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('setup-section').style.display = 'none';
+  document.getElementById('reset-btn').style.display = 'block';
+  await set(ref(db, 'game/state'), { phase: 'lobby', totalQ, timeLimit });
+  nextQuestion();
+};
+
+window.nextQuestion = async function() {
+  currentQIndex++;
+  document.getElementById('next-btn').style.display = 'none';
+  if (currentQIndex >= totalQ) { endGame(); return; }
+  showMain('ms-loading');
+  await set(ref(db, 'game/state/phase'), 'loading');
+
+  const q = await buildQuestion(currentQIndex);
+  questions.push(q);
+
+  await set(ref(db, 'game/state'), {
+    phase: 'question',
+    qIndex: currentQIndex,
+    totalQ,
+    timeLimit,
+    question: {
+      statement: q.statement,
+      answer: q.answer,
+      title: q.title,
+      summary: q.summary,
+      wikiUrl: q.wikiUrl,
+      timeLimit
+    }
+  });
+
+  showQuestion(q);
+};
+
+function showQuestion(q) {
+  document.getElementById('h-q-num').textContent = currentQIndex + 1;
+  document.getElementById('h-q-total').textContent = totalQ;
+  document.getElementById('h-q-text').textContent = q.statement;
+  document.getElementById('h-q-tag').textContent = '📖 Fact or Fake?';
+  document.getElementById('h-btn-fact').className = 'choice-box';
+  document.getElementById('h-btn-whack').className = 'choice-box';
+  document.getElementById('stat-fact').textContent = '0';
+  document.getElementById('stat-whack').textContent = '0';
+  document.getElementById('stat-pending').textContent = playerCount;
+  document.getElementById('h-answered-badge').textContent = '0 answered';
+  document.getElementById('h-timer-bar').style.width = '100%';
+  document.getElementById('h-timer-bar').style.background = '#f5c842';
+  showMain('ms-question');
+  startHostTimer();
+  watchAnswers();
+}
+
+function startHostTimer() {
+  clearInterval(timerInterval);
+  timeLeft = timeLimit;
+  timerInterval = setInterval(() => {
+    timeLeft -= 0.1;
+    const pct = Math.max(0, (timeLeft / timeLimit) * 100);
+    const bar = document.getElementById('h-timer-bar');
+    bar.style.width = pct + '%';
+    document.getElementById('h-timer').textContent = Math.ceil(Math.max(0, timeLeft));
+    if (pct < 30) bar.style.background = '#e74c3c';
+    else if (pct < 60) bar.style.background = '#e67e22';
+    if (timeLeft <= 0) { clearInterval(timerInterval); revealAnswer(); }
+  }, 100);
+}
+
+function watchAnswers() {
+  if (answersListener) answersListener();
+  const ansRef = ref(db, 'game/answers/' + currentQIndex);
+  answersListener = onValue(ansRef, snap => {
+    const ans = snap.val() || {};
+    const entries = Object.values(ans);
+    const factCount = entries.filter(a => a.ans === 'true').length;
+    const whackCount = entries.filter(a => a.ans === 'false').length;
+    const total = entries.length;
+    document.getElementById('stat-fact').textContent = factCount;
+    document.getElementById('stat-whack').textContent = whackCount;
+    document.getElementById('stat-pending').textContent = Math.max(0, playerCount - total);
+    document.getElementById('h-answered-badge').textContent = total + ' answered';
+  });
+}
+
+async function revealAnswer() {
+  clearInterval(timerInterval);
+  const q = questions[currentQIndex];
+  await set(ref(db, 'game/state/phase'), 'reveal');
+
+  const correct = q.answer === 'true';
+  document.getElementById('h-rv-verdict').textContent = correct ? '✅ That was a FACT' : '❌ Total WHACK!';
+  document.getElementById('h-rv-verdict').className = 'reveal-verdict ' + (correct ? 'correct' : 'wrong');
+  document.getElementById('h-rv-statement').textContent = q.statement;
+  document.getElementById('h-rv-summary').textContent = q.summary || '';
+  const lnk = document.getElementById('h-rv-link');
+  if (q.wikiUrl) { lnk.href = q.wikiUrl; lnk.style.display = 'inline'; }
+  else lnk.style.display = 'none';
+
+  document.getElementById('h-btn-fact').className = 'choice-box ' + (correct ? 'reveal-correct' : 'reveal-wrong');
+  document.getElementById('h-btn-whack').className = 'choice-box ' + (!correct ? 'reveal-correct' : 'reveal-wrong');
+
+  showMain('ms-reveal');
+  document.getElementById('next-btn').style.display = 'block';
+  document.getElementById('next-btn').textContent = currentQIndex + 1 >= totalQ ? 'Show Final Results 🏆' : 'Next Question →';
+}
+
+async function endGame() {
+  await set(ref(db, 'game/state/phase'), 'final');
+  const snap = await get(ref(db, 'game/players'));
+  const players = snap.val() || {};
+  const sorted = Object.values(players).sort((a,b) => b.score - a.score);
+  const ranks = ['r1','r2','r3'];
+  const medalEmoji = ['🥇','🥈','🥉'];
+  document.getElementById('final-sub').textContent = `${totalQ} questions — ${sorted.length} players`;
+  document.getElementById('final-list').innerHTML = sorted.map((p,i) =>
+    `<div class="final-lb-row">
+      <div class="final-rank-big ${ranks[i]||'rx'}">${medalEmoji[i]||i+1}</div>
+      <div style="flex:1;font-size:20px;font-weight:500">${p.name}</div>
+      <div style="font-size:22px;font-weight:600;color:#f5c842">${p.score||0} pts</div>
+    </div>`
+  ).join('');
+  showMain('ms-final');
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('reset-btn').style.display = 'block';
+  launchConfetti();
+}
+
+window.resetGame = async function() {
+  if (!confirm('Reset game and clear all players + scores?')) return;
+  clearInterval(timerInterval);
+  await remove(ref(db, 'game'));
+  await set(ref(db, 'game/state'), { phase: 'lobby' });
+  currentQIndex = -1;
+  questions = [];
+  document.getElementById('start-btn').style.display = 'block';
+  document.getElementById('setup-section').style.display = 'flex';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('reset-btn').style.display = 'none';
+  document.getElementById('lobby-count').textContent = '0';
+  document.getElementById('lb-list').innerHTML = '';
+  showMain('ms-lobby');
+};
+
+// ── Question builder ──
+async function buildQuestion(idx) {
+  const isReal = (idx % 5) < 3;
+  if (isReal) return fetchWikiQuestion();
+  return fetchAIQuestion();
+}
+
+async function fetchWikiQuestion() {
+  const topic = WIKI_TOPICS[Math.floor(Math.random() * WIKI_TOPICS.length)];
+  try {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`);
+    const data = await res.json();
+    const summary = data.extract || '';
+    const title = data.title || topic;
+    const wikiUrl = data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topic)}`;
+    const sentences = summary.match(/[^.!?]+[.!?]+/g) || [];
+    const facts = sentences.filter(s => s.length > 40 && s.length < 200);
+    if (facts.length > 0) {
+      const fact = facts[Math.floor(Math.random() * facts.length)].trim();
+      const makeTrue = Math.random() > 0.4;
+      if (makeTrue) {
+        return { statement: fact, answer: 'true', title, summary: summary.substring(0,300) + '...', wikiUrl };
+      } else {
+        const fake = await callClaude(`The following is a true fact about "${title}": "${fact}"\n\nRewrite it with ONE small but significant change (a number, name, or key property) to make it FALSE. Output ONLY the rewritten sentence.`);
+        return { statement: fake || fact, answer: 'false', title, summary: summary.substring(0,300) + '...', wikiUrl };
+      }
+    }
+  } catch(e) {}
+  return fallback();
+}
+
+async function fetchAIQuestion() {
+  const topic = WIKI_TOPICS[Math.floor(Math.random() * WIKI_TOPICS.length)];
+  try {
+    const raw = await callClaude(`Generate a single true-or-false trivia statement about "${topic}" that sounds like a Wikipedia fact. Make it weird and specific. It should be either genuinely TRUE or subtly FALSE. Output JSON only, no markdown: {"statement":"...","answer":"true or false","title":"${topic}","summary":"2-3 sentence explanation of the real fact"}`);
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const obj = JSON.parse(clean);
+    return { ...obj, wikiUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic)}` };
+  } catch(e) { return fallback(); }
+}
+
+async function callClaude(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  return data.content?.map(b => b.text || '').join('') || '';
+}
+
+function fallback() {
+  const fb = [
+    { statement: "Octopuses have three hearts, two of which stop beating when the octopus swims.", answer: "true", title: "Octopus", summary: "Octopuses have two branchial hearts that pump blood through the gills, and one systemic heart that pumps it through the body. The two smaller hearts pause during swimming, which is why octopuses prefer to crawl.", wikiUrl: "https://en.wikipedia.org/wiki/Octopus" },
+    { statement: "Tardigrades are the only animals known to have survived direct exposure to the vacuum of outer space.", answer: "true", title: "Tardigrade", summary: "In 2007, tardigrades were exposed to open space aboard a FOTON-M3 spacecraft. After returning to Earth, many had survived, making them the first animals confirmed to survive space conditions.", wikiUrl: "https://en.wikipedia.org/wiki/Tardigrade" },
+    { statement: "The mantis shrimp can punch with the force of a bullet, accelerating its club at the same speed as a .22 calibre bullet.", answer: "true", title: "Mantis shrimp", summary: "The peacock mantis shrimp can strike at up to 23 m/s, delivering a force of 1,500 newtons. The strike is so fast it superheats the surrounding water, creating cavitation bubbles that deliver a second shockwave.", wikiUrl: "https://en.wikipedia.org/wiki/Mantis_shrimp" },
+  ];
+  return fb[Math.floor(Math.random() * fb.length)];
+}
+
+function launchConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  wrap.innerHTML = '';
+  const colors = ['#f5c842','#27ae60','#3498db','#e74c3c','#9b59b6','#f39c12'];
+  for (let i = 0; i < 80; i++) {
+    const d = document.createElement('div');
+    const size = Math.random() * 14 + 6;
+    d.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:${colors[i%colors.length]};left:${Math.random()*100}%;top:-20px;border-radius:${Math.random()>0.5?'50%':'2px'};animation:fall ${1.5+Math.random()*2.5}s linear ${Math.random()*2}s forwards;opacity:0.9`;
+    wrap.appendChild(d);
+  }
+  const style = document.createElement('style');
+  style.textContent = '@keyframes fall{to{top:110%;transform:rotate(720deg);opacity:0}}';
+  wrap.appendChild(style);
+  setTimeout(() => wrap.innerHTML = '', 7000);
+}
+</script>
+</body>
+</html>

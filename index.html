@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wiki or Whack? — Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'IBM Plex Sans',sans-serif;background:#0d1b2a;color:#f0ede4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;min-height:100vh}
+
+.screen{display:none;width:100%;max-width:420px;flex-direction:column;align-items:center;gap:20px}
+.screen.active{display:flex}
+
+/* JOIN */
+.w-logo{font-family:'Playfair Display',serif;font-size:80px;font-weight:900;color:#f5c842;line-height:1;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.title{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;text-align:center}
+.sub{color:#64748b;font-size:14px;text-align:center;letter-spacing:1px;text-transform:uppercase}
+.card{background:#162032;border:1px solid #1e3048;border-radius:16px;padding:24px;width:100%}
+input{background:#0d1b2a;border:1px solid #243447;border-radius:10px;padding:14px 16px;color:#f0ede4;font-family:'IBM Plex Sans',sans-serif;font-size:16px;width:100%;margin-bottom:12px}
+input:focus{outline:none;border-color:#f5c842}
+input::placeholder{color:#4a5568}
+.btn{background:#f5c842;color:#0d1b2a;border:none;border-radius:12px;padding:16px;font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:600;cursor:pointer;width:100%;transition:all 0.15s}
+.btn:active{transform:scale(0.97);background:#ffd95a}
+.btn-outline{background:transparent;color:#f5c842;border:1.5px solid #f5c842;border-radius:12px;padding:14px;font-family:'IBM Plex Sans',sans-serif;font-size:16px;font-weight:500;cursor:pointer;width:100%;transition:all 0.15s;margin-top:8px}
+.err{color:#e74c3c;font-size:13px;text-align:center;min-height:18px}
+
+/* LOBBY */
+.avatar{width:72px;height:72px;border-radius:50%;background:#f5c842;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:#0d1b2a}
+.player-name-big{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;text-align:center}
+.status-pill{background:#1e3048;border-radius:20px;padding:10px 20px;font-size:14px;color:#94a3b8;text-align:center}
+.pulse-ring{width:12px;height:12px;border-radius:50%;background:#f5c842;display:inline-block;margin-right:8px;animation:ring 1.2s ease-in-out infinite}
+@keyframes ring{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+.score-display{font-size:48px;font-weight:700;font-family:'Playfair Display',serif;color:#f5c842;text-align:center}
+.score-label{font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;text-align:center}
+
+/* QUESTION */
+.q-number{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:2px;text-align:center}
+.q-text{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;line-height:1.45;text-align:center;color:#f0ede4}
+.timer-wrap{width:100%;background:#1e3048;border-radius:4px;height:6px;overflow:hidden}
+.timer-bar{height:100%;border-radius:4px;background:#f5c842;transition:width 0.1s linear,background 0.5s}
+.choices{display:flex;flex-direction:column;gap:14px;width:100%}
+.choice{background:#1e3048;border:2px solid #243447;border-radius:16px;padding:22px 20px;font-size:18px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center;display:flex;align-items:center;justify-content:center;gap:12px;user-select:none}
+.choice:active:not(:disabled){transform:scale(0.97)}
+.choice.selected-correct{background:rgba(39,174,96,0.2);border-color:#27ae60;color:#2ecc71}
+.choice.selected-wrong{background:rgba(192,57,43,0.2);border-color:#c0392b;color:#e74c3c}
+.choice.reveal-correct{background:rgba(39,174,96,0.15);border-color:#27ae60;color:#2ecc71}
+.choice.reveal-wrong{background:rgba(192,57,43,0.1);border-color:#374151;color:#6b7280}
+.choice:disabled{cursor:default}
+.choice-icon{font-size:26px}
+
+/* ANSWERED */
+.answered-msg{text-align:center;padding:20px}
+.answered-big{font-size:60px;margin-bottom:8px}
+.answered-pts{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:#f5c842}
+.answered-sub{font-size:14px;color:#64748b;margin-top:4px}
+
+/* REVEAL */
+.fact-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#f5c842;margin-bottom:8px}
+.fact-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:12px;line-height:1.4}
+.fact-body{font-size:14px;color:#94a3b8;line-height:1.7;margin-bottom:16px}
+.wiki-link{color:#f5c842;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(245,200,66,0.3);border-radius:8px;padding:8px 14px}
+.wiki-link:active{opacity:0.7}
+.next-wait{text-align:center;color:#4a5568;font-size:13px;margin-top:8px}
+
+/* FINAL */
+.final-rank{font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:#f5c842;text-align:center}
+.final-score{font-family:'Playfair Display',serif;font-size:40px;font-weight:700;text-align:center}
+.final-label{font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;text-align:center;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div class="screen active" id="s-join">
+  <div class="w-logo">W</div>
+  <div class="title">Wiki or Whack?</div>
+  <div class="sub">Wikipedia's 25th Birthday</div>
+  <div class="card">
+    <input type="text" id="name-input" placeholder="Your name..." maxlength="18" autocomplete="off" autocorrect="off">
+    <div class="err" id="join-err"></div>
+    <button class="btn" onclick="joinGame()">Join Game</button>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div class="screen" id="s-lobby">
+  <div class="avatar" id="lobby-avatar">M</div>
+  <div class="player-name-big" id="lobby-name">Player</div>
+  <div class="status-pill"><span class="pulse-ring"></span>Waiting for host to start...</div>
+  <div style="color:#4a5568;font-size:13px;text-align:center;line-height:1.7">
+    Get ready!<br>Answer fast = more points 🔥
+  </div>
+</div>
+
+<!-- QUESTION -->
+<div class="screen" id="s-question">
+  <div class="q-number" id="q-num-label">Question 1 of 10</div>
+  <div class="timer-wrap"><div class="timer-bar" id="q-timer-bar" style="width:100%"></div></div>
+  <div class="q-text" id="q-text-player">Loading...</div>
+  <div class="choices">
+    <button class="choice" id="btn-fact" onclick="submitAnswer('true')">
+      <span class="choice-icon">✅</span> That's a FACT
+    </button>
+    <button class="choice" id="btn-whack" onclick="submitAnswer('false')">
+      <span class="choice-icon">❌</span> Total WHACK
+    </button>
+  </div>
+</div>
+
+<!-- ANSWERED -->
+<div class="screen" id="s-answered">
+  <div class="answered-msg">
+    <div class="answered-big" id="ans-emoji">⏳</div>
+    <div class="answered-pts" id="ans-pts">+0 pts</div>
+    <div class="answered-sub" id="ans-sub">Waiting for reveal...</div>
+  </div>
+  <div class="status-pill"><span class="pulse-ring"></span>Waiting for others...</div>
+</div>
+
+<!-- REVEAL -->
+<div class="screen" id="s-reveal">
+  <div class="card">
+    <div class="fact-tag" id="rv-verdict">✅ FACT</div>
+    <div class="fact-title" id="rv-title">Did you know?</div>
+    <div class="fact-body" id="rv-summary"></div>
+    <a class="wiki-link" id="rv-link" href="#" target="_blank">
+      📖 Read on Wikipedia
+    </a>
+  </div>
+  <div style="background:#162032;border:1px solid #1e3048;border-radius:12px;padding:16px;width:100%;text-align:center">
+    <div class="score-label">Your total score</div>
+    <div class="score-display" id="rv-score">0</div>
+  </div>
+  <div class="next-wait">Next question coming up...</div>
+</div>
+
+<!-- FINAL -->
+<div class="screen" id="s-final">
+  <div style="font-size:48px;text-align:center">🎉</div>
+  <div class="title">Game Over!</div>
+  <div class="card" style="text-align:center;gap:12px;display:flex;flex-direction:column">
+    <div class="final-rank" id="final-rank">#1</div>
+    <div class="final-label">Your rank</div>
+    <div style="border-top:1px solid #1e3048;padding-top:16px;margin-top:4px">
+      <div class="final-score" id="final-score">0</div>
+      <div class="final-label">Total points</div>
+    </div>
+  </div>
+  <div style="color:#4a5568;font-size:13px;text-align:center">Check the big screen for the full leaderboard!</div>
+  <button class="btn-outline" onclick="location.reload()">Play Again</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCTv3Z2wribcOM8a2A6U4O2HKDoDfrIXNk",
+  authDomain: "wiki-or-whack.firebaseapp.com",
+  databaseURL: "https://wiki-or-whack-default-rtdb.firebaseio.com",
+  projectId: "wiki-or-whack",
+  storageBucket: "wiki-or-whack.firebasestorage.app",
+  messagingSenderId: "990567923630",
+  appId: "1:990567923630:web:193c7f969fe858fe16d23f",
+  measurementId: "G-20SW26J5QS"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let myName = '';
+let myId = '';
+let myScore = 0;
+let currentQIndex = -1;
+let answerTime = null;
+let answered = false;
+let timerInterval = null;
+let gameRef = null;
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.joinGame = function() {
+  const name = document.getElementById('name-input').value.trim();
+  const err = document.getElementById('join-err');
+  if (!name) { err.textContent = 'Enter your name!'; return; }
+  myName = name;
+  myId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+
+  const playerRef = ref(db, 'game/players/' + myId);
+  set(playerRef, { name: myName, score: 0, joinedAt: serverTimestamp() });
+
+  document.getElementById('lobby-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('lobby-name').textContent = name;
+  show('s-lobby');
+  listenToGame();
+};
+
+function listenToGame() {
+  gameRef = ref(db, 'game/state');
+  onValue(gameRef, snap => {
+    const state = snap.val();
+    if (!state) return;
+    handleState(state);
+  });
+}
+
+function handleState(state) {
+  if (state.phase === 'lobby') {
+    show('s-lobby');
+  } else if (state.phase === 'question') {
+    if (state.qIndex !== currentQIndex) {
+      currentQIndex = state.qIndex;
+      answered = false;
+      loadQuestion(state);
+    }
+  } else if (state.phase === 'reveal') {
+    if (!answered) {
+      myScore = (myScore || 0);
+      updateMyScore();
+    }
+    showReveal(state);
+  } else if (state.phase === 'final') {
+    showFinal(state);
+  }
+}
+
+function loadQuestion(state) {
+  clearInterval(timerInterval);
+  const q = state.question;
+  document.getElementById('q-num-label').textContent = `Question ${state.qIndex + 1} of ${state.totalQ}`;
+  document.getElementById('q-text-player').textContent = q.statement;
+  const btnF = document.getElementById('btn-fact');
+  const btnW = document.getElementById('btn-whack');
+  btnF.className = 'choice'; btnF.disabled = false;
+  btnW.className = 'choice'; btnW.disabled = false;
+  document.getElementById('q-timer-bar').style.width = '100%';
+  document.getElementById('q-timer-bar').style.background = '#f5c842';
+  answerTime = Date.now();
+  show('s-question');
+
+  const duration = (state.question.timeLimit || 15) * 1000;
+  const start = Date.now();
+  timerInterval = setInterval(() => {
+    const elapsed = Date.now() - start;
+    const pct = Math.max(0, 100 - (elapsed / duration * 100));
+    const bar = document.getElementById('q-timer-bar');
+    bar.style.width = pct + '%';
+    if (pct < 30) bar.style.background = '#e74c3c';
+    else if (pct < 60) bar.style.background = '#e67e22';
+    if (elapsed >= duration) {
+      clearInterval(timerInterval);
+      if (!answered) autoTimeout();
+    }
+  }, 100);
+}
+
+window.submitAnswer = function(ans) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  const elapsed = (Date.now() - answerTime) / 1000;
+  const timeLimit = 15;
+  const pts = Math.max(1, Math.round(10 - (elapsed / timeLimit) * 8));
+
+  onValue(ref(db, 'game/state/question/answer'), snap => {
+    const correctAns = snap.val();
+    const correct = ans === correctAns;
+    const earned = correct ? pts : 0;
+    myScore += earned;
+
+    const btnFact = document.getElementById('btn-fact');
+    const btnWhack = document.getElementById('btn-whack');
+    if (ans === 'true') {
+      btnFact.className = 'choice ' + (correct ? 'selected-correct' : 'selected-wrong');
+    } else {
+      btnWhack.className = 'choice ' + (correct ? 'selected-correct' : 'selected-wrong');
+    }
+    btnFact.disabled = true;
+    btnWhack.disabled = true;
+
+    document.getElementById('ans-emoji').textContent = correct ? '🎉' : '😬';
+    document.getElementById('ans-pts').textContent = (correct ? '+' : '+') + earned + ' pts';
+    document.getElementById('ans-sub').textContent = correct ? 'Correct! Nice speed!' : 'Wrong one! Better luck next time.';
+
+    updateMyScore();
+    set(ref(db, 'game/answers/' + currentQIndex + '/' + myId), {
+      name: myName, ans, correct, pts: earned, elapsed: Math.round(elapsed * 10) / 10
+    });
+
+    setTimeout(() => show('s-answered'), 600);
+  }, { onlyOnce: true });
+};
+
+function autoTimeout() {
+  answered = true;
+  document.getElementById('ans-emoji').textContent = '⏱️';
+  document.getElementById('ans-pts').textContent = '+0 pts';
+  document.getElementById('ans-sub').textContent = 'Too slow! No points this round.';
+  set(ref(db, 'game/answers/' + currentQIndex + '/' + myId), {
+    name: myName, ans: 'timeout', correct: false, pts: 0, elapsed: 15
+  });
+  show('s-answered');
+}
+
+function updateMyScore() {
+  set(ref(db, 'game/players/' + myId + '/score'), myScore);
+}
+
+function showReveal(state) {
+  const q = state.question;
+  document.getElementById('rv-verdict').textContent = q.answer === 'true' ? '✅ That was a FACT' : '❌ Total WHACK!';
+  document.getElementById('rv-title').textContent = q.title || 'Did you know?';
+  document.getElementById('rv-summary').textContent = q.summary || '';
+  const lnk = document.getElementById('rv-link');
+  if (q.wikiUrl) { lnk.href = q.wikiUrl; lnk.style.display = 'inline-flex'; }
+  else lnk.style.display = 'none';
+  document.getElementById('rv-score').textContent = myScore;
+  show('s-reveal');
+}
+
+function showFinal(state) {
+  clearInterval(timerInterval);
+  onValue(ref(db, 'game/players'), snap => {
+    const players = snap.val() || {};
+    const sorted = Object.values(players).sort((a, b) => b.score - a.score);
+    const rank = sorted.findIndex(p => p.name === myName) + 1;
+    document.getElementById('final-rank').textContent = '#' + rank;
+    document.getElementById('final-score').textContent = myScore + ' pts';
+    show('s-final');
+  }, { onlyOnce: true });
+}
+</script>
+</body>
+</html>
